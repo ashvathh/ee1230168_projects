@@ -25,8 +25,8 @@ class Planner:
         num_cities = len(self.graph)
         queue = Queue()  
         queue.enqueue((start_city, [], t1-20)) 
-        min_flights = [float('inf')] * num_cities
-        arrival_time = [float('inf')] * num_cities
+        min_flights = [float('inf')] * num_cities #minimum flights to reach each city
+        arrival_time = [float('inf')] * num_cities #earliest arrival time to reach each city
         
         min_flights[start_city] = 0
         arrival_time[start_city] = t1
@@ -46,26 +46,28 @@ class Planner:
                     #if found a route with same number of flights but earlier arrival time, update best_route and best_arrival_time
                     best_route = path
                     best_arrival_time = current_time
-                continue
+                continue # dont explore further from this city; go to the next city in the queue
             for flight in self.graph[current_city]: # Explore all flights from the current city
-                # Check if the flight meets time constraints
+                # Check if the flight meets the general time constraints
                 if flight.departure_time >= t1 and \
                    flight.departure_time >= current_time + 20 and \
                    flight.arrival_time <= t2:
+                    
                     new_time = flight.arrival_time
-
                     flights_taken = len(path) + 1
+                    
                     # Proceed only if this path is better (fewer flights or earlier arrival time for the same number of flights)
                     if flights_taken < min_flights[flight.end_city] or \
                        (flights_taken == min_flights[flight.end_city] and new_time < arrival_time[flight.end_city]):
                         min_flights[flight.end_city] = flights_taken
                         arrival_time[flight.end_city] = new_time
-                        queue.enqueue((flight.end_city, path + [flight], new_time))
+                        #add to the queue the edn city with the new path and arrival time
+                        queue.enqueue((flight.end_city, path + [flight], new_time)) 
         if best_route==None:
             return []
-        return best_route            
-        pass
+        return best_route
     
+
     def cheapest_route(self, start_city, end_city, t1, t2):
         """
         Return List[Flight]: A route from start_city to end_city, which departs after t1 (>= t1) and
@@ -74,31 +76,34 @@ class Planner:
         """
         num_cities = len(self.graph)
         heap = Heap(lambda x, y: x[0] < y[0],[(0, start_city, [], t1-20)])
-        min_fare = [float('inf')] * num_cities
+        min_fare = [float('inf')] * num_cities # minimum fare to reach each city
         min_fare[start_city] = 0
         best_route = None
         
         while len(heap.heap)!=0:
             cumulative_fare, current_city, path, current_time = heap.extract()
             
+            #if the end city is reached, the path is the best route since the heap is a min-heap on fares
+            #since it is a min-heap on fares, the element extracted is the cheapaest route to the current city.
+            #hence, if the current city is the end city, we have found the best route
             if current_city == end_city:
                 best_route = path
                 break
 
             for flight in self.graph[current_city]:
+                # Check if the flight meets the general time constraints
                 if flight.departure_time >= t1 and \
                    flight.departure_time >= current_time + 20 and \
                    flight.arrival_time <= t2:
                     new_fare = cumulative_fare + flight.fare
                     new_time = flight.arrival_time
-
+                    # Proceed only if this path is cheaper
                     if new_fare < min_fare[flight.end_city]:
                         min_fare[flight.end_city] = new_fare
                         heap.insert((new_fare, flight.end_city, path + [flight], new_time))
         if best_route==None:
             return []
         return best_route
-        pass
     
     def least_flights_cheapest_route(self, start_city, end_city, t1, t2):
         """
@@ -107,6 +112,8 @@ class Planner:
         The route has the least number of flights, and within routes with same number of flights, 
         is the cheapest
         """
+        #the logic is similar to the least_flights_earliest_route.
+        #but instead of tracking arrival time, we track fare for adding the path to the queue.
         num_cities = len(self.graph)
         queue = Queue()
         queue.enqueue((0, 0, start_city, [], t1-20))
@@ -147,8 +154,8 @@ class Planner:
                         min_fare[flight.end_city] = new_fare
                         queue.enqueue((new_flights_count, new_fare, flight.end_city, path + [flight], new_time))
 
-        return best_route if best_route is not None else []
-        pass
+        if best_route is not None: return best_route 
+        else: return []
 
 class Node:
     #A node in the linked list used for the queue
@@ -205,49 +212,16 @@ class Heap:
     '''
     
     def __init__(self, comparison_function, init_array=[]):
-        '''
-        Arguments:
-            comparison_function : function : A function that takes in two arguments and returns a boolean value
-            init_array : List[Any] : The initial array to be inserted into the heap
-        Returns:
-            None
-        Description:
-            Initializes a heap with a comparison function.
-            Details of Comparison Function:
-                If comparison_function(x, y) returns True, then x is considered smaller than y.
-        Time Complexity:
-            O(n) where n is the number of elements in init_array
-        '''
         self.compare = comparison_function
         self.heap = []
         for value in init_array:
             self.insert(value)
 
     def insert(self, value):
-        '''
-        Arguments:
-            value : Any : The value to be inserted into the heap
-        Returns:
-            None
-        Description:
-            Inserts a value into the heap and maintains heap property
-        Time Complexity:
-            O(log(n)) where n is the number of elements currently in the heap
-        '''
         self.heap.append(value)
         self._heapify_up(len(self.heap) - 1)
 
     def extract(self):
-        '''
-        Arguments:
-            None
-        Returns:
-            Any : The value extracted from the top of heap
-        Description:
-            Extracts the value from the top of heap and restores heap property
-        Time Complexity:
-            O(log(n)) where n is the number of elements currently in the heap
-        '''
         if len(self.heap) == 0:
             raise IndexError("extract from an empty heap")
         
@@ -263,25 +237,12 @@ class Heap:
         return root_value
     
     def top(self):
-        '''
-        Arguments:
-            None
-        Returns:
-            Any : The value at the top of heap
-        Description:
-            Returns the value at the top of heap without removing it
-        Time Complexity:
-            O(1)
-        '''
         if len(self.heap) == 0:
             raise IndexError("top from an empty heap")
         
         return self.heap[0]
     
     def _heapify_up(self, index):
-        '''
-        Moves the element at index up the heap until the heap property is restored
-        '''
         parent = (index - 1) // 2
         if index > 0 and self.compare(self.heap[index], self.heap[parent]):
             # Swap if the current element is "smaller" than the parent
@@ -289,9 +250,7 @@ class Heap:
             self._heapify_up(parent)
 
     def _heapify_down(self, index):
-        '''
-        Moves the element at index down the heap until the heap property is restored
-        '''
+
         left_child = 2 * index + 1
         right_child = 2 * index + 2
         smallest = index
